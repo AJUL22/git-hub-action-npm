@@ -8,10 +8,11 @@ on:
 
 jobs:
   build-and-test:
+    name: Install → Test → Build → Upload
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Use Node.js
@@ -20,11 +21,20 @@ jobs:
           node-version: "18"
           cache: "npm"
 
-      - name: Install dependencies
+      - name: Show Node/npm versions
+        run: |
+          node --version
+          npm --version
+          pwd
+          ls -la
+
+      - name: Install dependencies (prefer npm ci when lockfile exists)
         run: |
           if [ -f package-lock.json ]; then
+            echo "package-lock.json found → using npm ci"
             npm ci
           else
+            echo "No package-lock.json → using npm install"
             npm install
           fi
 
@@ -34,7 +44,38 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Show build output
+      - name: Show dist directory
         run: |
-          echo "Build complete"
-          ls -la dist || echo "No dist folder found"
+          echo "Listing dist (if present):"
+          ls -la dist || true
+          echo "Listing repo root:"
+          ls -la
+
+      - name: Upload build artifact(s)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodejs-build
+          path: dist/**
+          retention-days: 7
+
+  list-artifact:
+    name: Download & list uploaded build artifact
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nodejs-build
+          path: downloaded-artifacts
+
+      - name: Show downloaded artifacts
+        run: |
+          echo "=== downloaded-artifacts ==="
+          ls -la downloaded-artifacts || true
+          echo ""
+          echo "=== recursive listing ==="
+          find downloaded-artifacts -maxdepth 5 -type f -print || true
+          echo ""
+          echo "=== file details ==="
+          find downloaded-artifacts -type f -exec file {} \; || true
