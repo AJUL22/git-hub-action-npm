@@ -1,4 +1,5 @@
-name: Node.js Ci
+name: Node.js CI
+
 on:
   push:
     branches: [ main, master ]
@@ -6,94 +7,34 @@ on:
     branches: [ main, master ]
 
 jobs:
-   build:
-    name: Build & Upload Artifact
+  build-and-test:
     runs-on: ubuntu-latest
-    needs: test
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js 18
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run unit tests
+        run: npm test
 
       - name: Build project
         run: npm run build
 
-      - name: Show dist directory
+      - name: Show build output
         run: |
-          echo "PWD: $(pwd)"
-          echo "Listing repository root:"
-          ls -la
-          echo "Listing dist (if it exists):"
-          ls -la dist || true
-
-      - name: Upload build artifact(s)
-        uses: actions/upload-artifact@v4
-        with:
-          name: nodejs-build
-          path: dist/**
-          retention-days: 7
-  test:
-    name: Install & Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Use Node.js 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Show Node & npm versions
-        run: |
-          node --version
-          npm --version
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run unit tests (Jest)
-        run: npm test
-
-      - name: Upload test logs (optional)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs
-          path: |
-            ./npm-debug.log
-            ./test-results || true
-
-  
-  list-artifact:
-    name: Download & Inspect Build Artifact
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: nodejs-build
-          path: downloaded-artifacts
-
-      - name: Show downloaded artifacts
-        run: |
-          echo "=== downloaded-artifacts ==="
-          ls -la downloaded-artifacts || true
-          echo ""
-          echo "=== show contents of dist (copied) ==="
-          for f in downloaded-artifacts/**; do
-            echo "$f"
-          done || true
-          echo ""
-          echo "=== show file details ==="
-          find downloaded-artifacts -type f -maxdepth 4 -exec file {} \; || true
+          echo "Build complete"
+          ls -la dist || echo "No dist folder found"
