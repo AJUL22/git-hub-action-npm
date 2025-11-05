@@ -1,33 +1,55 @@
+# Workflow to build and test the Node.js application
 name: Node.js CI
 
+# Define when the workflow should run
 on:
+  # Trigger on push events to the 'main' branch
   push:
-    branches:
-      - main
+    branches: [ main ]
+  # Trigger on pull request events targeting the 'main' branch
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
+# A workflow run is made up of one or more jobs
 jobs:
-  build:
+  build-and-test:
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    
+    # Use a matrix strategy to test against multiple versions of Node.js
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout Repository
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run lint
-        run: npm run lint
-        # optional: remove if you don't have a lint script
-
-      - name: Run tests
-        run: npm test
+    - name: Set up Node.js ${{ matrix.node-version }}
+      # Use the pre-built setup-node action
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm' # Cache node modules for faster execution
+        
+    - name: Install Dependencies
+      # Installs project dependencies using npm
+      run: npm ci
+      
+    - name: Run Tests
+      # Executes the 'test' script defined in your package.json (which is 'jest')
+      run: npm test
+      
+    - name: Run Build
+      # Executes the 'build' script defined in your package.json
+      # This step can be skipped if only testing is required, but it's good practice
+      # to ensure the build command itself runs successfully.
+      run: npm run build
+      
+    - name: Archive Build Artifacts (Optional)
+      # If you need to deploy the 'dist' folder later, this step saves it.
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-output-node-${{ matrix.node-version }}
+        path: dist/
